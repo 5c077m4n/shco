@@ -1,0 +1,1 @@
+# SHCO (SHell COnfigurator)
