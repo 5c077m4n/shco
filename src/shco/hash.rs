@@ -9,6 +9,8 @@ pub fn get_config_hash() -> Result<String> {
 	if config_file.try_exists()? {
 		let config_file = config_file.as_path();
 		let hash = try_digest(config_file)?;
+
+		log::debug!(r#"Hash: "{}""#, &hash);
 		Ok(hash)
 	} else {
 		bail!("Config file could not be read");

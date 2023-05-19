@@ -1,4 +1,4 @@
-use std::{fs, println, process::Command};
+use std::{fs, process::Command};
 
 use anyhow::Result;
 use shco::{
@@ -10,6 +10,8 @@ use shco::{
 mod shco;
 
 fn main() -> Result<()> {
+	env_logger::init();
+
 	let config_hash = match get_config_hash() {
 		Ok(hash) => hash,
 		Err(_) => return Ok(()),
@@ -39,7 +41,7 @@ fn main() -> Result<()> {
 			let (name, author) = match (plugin_parts.next_back(), plugin_parts.next_back()) {
 				(Some(name), Some(author)) => (name, author),
 				_ => {
-					eprintln!("[shco] `{}` is an invalid plugin URL", plugin);
+					log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
 					continue;
 				}
 			};
@@ -49,13 +51,13 @@ fn main() -> Result<()> {
 				let mut git = Command::new("git pull origin/main");
 				git.current_dir(plug_local_dir);
 
-				println!("Updating {}/{}...", author, name);
+				log::info!("Updating {}/{}...", author, name);
 				git.spawn()?;
 			} else {
 				let mut git = Command::new(format!("git clone {}", plugin));
 				git.current_dir(plug_local_dir);
 
-				println!("Installing {}/{}...", author, name);
+				log::info!("Installing {}/{}...", author, name);
 				git.spawn()?;
 			}
 		}
