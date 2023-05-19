@@ -2,5 +2,5 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-	plugins: Vec<String>,
+	pub plugins: Vec<String>,
 }
