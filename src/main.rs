@@ -13,6 +13,8 @@ use shco::{
 
 mod shco;
 
+const CONFIG_LOCK: &str = "config.lock";
+
 fn main() -> Result<()> {
 	env_logger::init();
 
@@ -27,16 +29,16 @@ fn main() -> Result<()> {
 	fs::create_dir_all(cache_dir)?;
 	log::debug!("{:?} is available", cache_dir);
 
-	let lock_file = cache_dir.join("shco.lock");
-	let lock_file = lock_file.as_path();
-	let mut lock_file = OpenOptions::new()
+	let config_lock_file = cache_dir.join(CONFIG_LOCK);
+	let config_lock_file = config_lock_file.as_path();
+	let mut config_lock_file = OpenOptions::new()
 		.read(true)
 		.append(true)
 		.create(true)
-		.open(lock_file)?;
+		.open(config_lock_file)?;
 
 	let mut current_hash = vec![];
-	lock_file.read_to_end(&mut current_hash)?;
+	config_lock_file.read_to_end(&mut current_hash)?;
 
 	log::debug!("Current hash: {:?}", current_hash);
 
@@ -53,7 +55,9 @@ fn main() -> Result<()> {
 		config_file.read_to_end(&mut config)?;
 		let config: Config = serde_json::from_slice(&config)?;
 
-		let plugins_dir = get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
+		let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
+		fs::create_dir_all(plugins_dir)?;
+
 		for plugin in config.plugins {
 			let plugin = plugin.as_str();
 			log::debug!("Started working on {:?}", plugin);
@@ -66,24 +70,23 @@ fn main() -> Result<()> {
 					continue;
 				}
 			};
-			let plug_local_dir = &plugins_dir.join(author).join(name);
-			fs::create_dir_all(plug_local_dir)?;
+			let plug_git_dir = plugins_dir.join(author).join(name).join(".git");
 
-			if plug_local_dir.exists() {
-				let mut git = Command::new("git pull origin/main");
-				git.current_dir(plug_local_dir);
-
-				log::info!("Updating {}/{}...", author, name);
-				git.spawn()?;
+			if !plug_git_dir.exists() {
+				log::info!("[shco] Installing '{}/{}'...", author, name);
+				Command::new("git")
+					.arg("clone")
+					.arg(plugin)
+					.current_dir(plugins_dir)
+					.output()?;
+				log::info!("[shco] Installed '{}/{}' successfully", author, name);
 			} else {
-				let mut git = Command::new(format!("git clone {}", plugin));
-				git.current_dir(plug_local_dir);
-
-				log::info!("Installing {}/{}...", author, name);
-				git.spawn()?;
+				log::debug!("Plugin '{}' already exists", plugin);
 			}
 		}
-		lock_file.write(config_hash)?;
+		config_lock_file.write(config_hash)?;
+	} else {
+		log::debug!("Locked hash and config's are the same, see you next time")
 	}
 
 	Ok(())
