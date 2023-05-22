@@ -1,10 +1,12 @@
 use std::{
 	fs::{self, OpenOptions},
 	io::{Read, Write},
-	process::Command,
+	println,
+	process::{self, Command},
 };
 
 use anyhow::Result;
+use clap::{command, Parser};
 use shco::{
 	config::Config,
 	hash::get_config_hash,
@@ -15,8 +17,61 @@ mod shco;
 
 const CONFIG_LOCK: &str = "config.lock";
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct CLIArgs {
+	#[arg(short, long)]
+	init: bool,
+	#[arg(short, long)]
+	refresh: Option<bool>,
+	#[arg(short, long)]
+	sync: Option<bool>,
+}
+
 fn main() -> Result<()> {
 	env_logger::init();
+	let CLIArgs {
+		init,
+		sync,
+		refresh,
+	} = CLIArgs::parse();
+	let shell = env!("SHELL").split('/').last().unwrap();
+
+	if init {
+		match shell {
+			"zsh" => {
+				print!(
+					r#"
+                    _update_plugins_hook() {{
+                        local res="$(shco --sync)"
+                        [[ -n "$res" ]] && eval "$res"
+                    }}
+                    typeset -a preexec_functions
+                    preexec_funcitons+=(_update_plugins_hook)
+                    "#
+				);
+			}
+			"bash" => {
+				print!(
+					r#"
+                    _update_plugins_hook() {{
+                        local res="$(shco --sync)"
+                        [[ -n "$res" ]] && eval "$res"
+                    }}
+                    trap '$_update_plugins_hook' DEBUG
+                    "#
+				);
+			}
+			other => {
+				log::error!("`{}` is an unsupported shell", &other);
+				process::exit(1);
+			}
+		}
+		return Ok(());
+	}
+
+	let _sync = sync.unwrap_or_default();
+	let _refresh = refresh.unwrap_or_default();
 
 	let config_hash = match get_config_hash() {
 		Ok(hash) => hash,
@@ -73,18 +128,19 @@ fn main() -> Result<()> {
 			let plug_git_dir = plugins_dir.join(author).join(name).join(".git");
 
 			if !plug_git_dir.exists() {
-				log::info!("[shco] Installing '{}/{}'...", author, name);
+				log::debug!("[shco] Installing '{}/{}'...", author, name);
 				Command::new("git")
 					.arg("clone")
 					.arg(plugin)
 					.current_dir(plugins_dir)
 					.output()?;
-				log::info!("[shco] Installed '{}/{}' successfully", author, name);
+				log::debug!("[shco] Installed '{}/{}' successfully", author, name);
 			} else {
 				log::debug!("Plugin '{}' already exists", plugin);
 			}
 		}
 		config_lock_file.write(config_hash)?;
+		println!("exec zsh");
 	} else {
 		log::debug!("Locked hash and config's are the same, see you next time")
 	}
