@@ -1,4 +1,5 @@
 use std::{
+	env,
 	fs::{self, OpenOptions},
 	io::{Read, Write},
 	println,
@@ -23,43 +24,33 @@ struct CLIArgs {
 	#[arg(short, long)]
 	init: bool,
 	#[arg(short, long)]
-	refresh: Option<bool>,
+	refresh: bool,
 	#[arg(short, long)]
-	sync: Option<bool>,
+	sync: bool,
 }
 
 fn main() -> Result<()> {
 	env_logger::init();
 	let CLIArgs {
 		init,
-		sync,
-		refresh,
+		refresh: _,
+		sync: _,
 	} = CLIArgs::parse();
 	let shell = env!("SHELL").split('/').last().unwrap();
 
 	if init {
 		match shell {
 			"zsh" => {
-				print!(
+				println!(
 					r#"
                     _update_plugins_hook() {{
-                        local res="$(shco --sync)"
+                        local res="$({})"
                         [[ -n "$res" ]] && eval "$res"
                     }}
-                    typeset -a preexec_functions
-                    preexec_funcitons+=(_update_plugins_hook)
-                    "#
-				);
-			}
-			"bash" => {
-				print!(
-					r#"
-                    _update_plugins_hook() {{
-                        local res="$(shco --sync)"
-                        [[ -n "$res" ]] && eval "$res"
-                    }}
-                    trap '$_update_plugins_hook' DEBUG
-                    "#
+                    autoload -Uz add-zsh-hook
+                    add-zsh-hook preexec _update_plugins_hook
+                    "#,
+					env::current_exe()?.display()
 				);
 			}
 			other => {
@@ -69,9 +60,6 @@ fn main() -> Result<()> {
 		}
 		return Ok(());
 	}
-
-	let _sync = sync.unwrap_or_default();
-	let _refresh = refresh.unwrap_or_default();
 
 	let config_hash = match get_config_hash() {
 		Ok(hash) => hash,
@@ -108,12 +96,12 @@ fn main() -> Result<()> {
 
 		let mut config = vec![];
 		config_file.read_to_end(&mut config)?;
-		let config: Config = serde_json::from_slice(&config)?;
+		let Config { plugins } = serde_json::from_slice(&config)?;
 
 		let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
 		fs::create_dir_all(plugins_dir)?;
 
-		for plugin in config.plugins {
+		for plugin in plugins {
 			let plugin = plugin.as_str();
 			log::debug!("Started working on {:?}", plugin);
 
@@ -138,11 +126,22 @@ fn main() -> Result<()> {
 			} else {
 				log::debug!("Plugin '{}' already exists", plugin);
 			}
+			println!(
+				r#"
+                local -a initfiles=(
+                    {0}/{1}/{2}/{2}.{{plugin.,}}{{z,}}sh{{-theme,}}(N)
+                    {0}/{1}/{2}/*.{{plugin.,}}{{z,}}sh{{-theme,}}(N)
+                )
+                (( $#initfiles )) && source $initfiles[1]
+                "#,
+				plugins_dir.display(),
+				author,
+				name
+			);
 		}
 		config_lock_file.write(config_hash)?;
-		println!("exec zsh");
 	} else {
-		log::debug!("Locked hash and config's are the same, see you next time")
+		log::debug!("Locked hash and config's are the same, see you next time");
 	}
 
 	Ok(())
