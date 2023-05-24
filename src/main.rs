@@ -23,6 +23,7 @@ const CONFIG_LOCK: &str = "config.lock";
 enum Commands {
 	Init,
 	Sync,
+	Source,
 }
 
 #[derive(Parser, Debug)]
@@ -122,5 +123,6 @@ fn main() -> Result<()> {
 
 			Ok(())
 		}
+		Commands::Source => Ok(()),
 	}
 }

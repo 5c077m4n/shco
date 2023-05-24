@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 
 pub fn print_shell_init(shell_path: &str) -> Result<()> {
 	let bin_path = env::current_exe()?;
-	let bin_path = bin_path.display();
+	let bin_path = bin_path.display().to_string() + " source";
 
 	shell_path
 		.split('/')
@@ -14,7 +14,7 @@ pub fn print_shell_init(shell_path: &str) -> Result<()> {
 			"zsh" => {
 				println!(
 					include_str!("../../assets/scripts/init.zsh"),
-					location = bin_path
+					cmd = bin_path
 				);
 			}
 			other => {

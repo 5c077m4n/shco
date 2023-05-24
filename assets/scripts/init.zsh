@@ -1,6 +1,5 @@
 _update_plugins_hook() {{
-	local res="$({location})"
+	local res="$({cmd})"
 	[[ -n "$res" ]] && eval "$res"
 }}
-autoload -Uz add-zsh-hook
-add-zsh-hook preexec _update_plugins_hook
+trap '_update_plugins_hook' WINCH
