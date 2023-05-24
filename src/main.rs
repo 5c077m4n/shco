@@ -42,15 +42,8 @@ fn main() -> Result<()> {
 		match shell {
 			"zsh" => {
 				println!(
-					r#"
-                    _update_plugins_hook() {{
-                        local res="$({})"
-                        [[ -n "$res" ]] && eval "$res"
-                    }}
-                    autoload -Uz add-zsh-hook
-                    add-zsh-hook preexec _update_plugins_hook
-                    "#,
-					env::current_exe()?.display()
+					include_str!("../assets/scripts/init.zsh"),
+					location = env::current_exe()?.display()
 				);
 			}
 			other => {
