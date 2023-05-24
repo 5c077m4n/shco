@@ -10,14 +10,13 @@ use anyhow::Result;
 use clap::{command, Parser, Subcommand};
 use shco::{
 	config::Config,
+	consts::CONFIG_LOCK,
 	hash::get_config_hash,
 	path::{get_xdg_compat_dir, XDGDirType},
-	utils::print_shell_init,
+	utils::{get_rc_config, print_shell_init},
 };
 
 mod shco;
-
-const CONFIG_LOCK: &str = "config.lock";
 
 #[derive(Debug, Subcommand)]
 enum Commands {
@@ -40,7 +39,7 @@ fn main() -> Result<()> {
 	match command {
 		Commands::Init => {
 			let shell_path = env::var("SHELL")?;
-			print_shell_init(&shell_path)
+			print_shell_init(&shell_path)?;
 		}
 		Commands::Sync => {
 			let config_hash = match get_config_hash() {
@@ -64,21 +63,10 @@ fn main() -> Result<()> {
 
 			let mut current_hash = vec![];
 			config_lock_file.read_to_end(&mut current_hash)?;
-
-			log::debug!("Current hash: {:?}", current_hash);
+			log::debug!("Current hash: {:?}", &current_hash);
 
 			if config_hash != current_hash {
-				let config_dir = get_xdg_compat_dir(XDGDirType::Config)?;
-				let config_file = config_dir.join("rc.json");
-				let mut config_file = OpenOptions::new()
-					.read(true)
-					.append(true)
-					.create(true)
-					.open(config_file)?;
-
-				let mut config = vec![];
-				config_file.read_to_end(&mut config)?;
-				let Config { plugins } = serde_json::from_slice(&config)?;
+				let Config { plugins } = get_rc_config()?;
 
 				let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
 				fs::create_dir_all(plugins_dir)?;
@@ -87,9 +75,8 @@ fn main() -> Result<()> {
 					let plugin = plugin.as_str();
 					log::debug!("Started working on {:?}", plugin);
 
-					let mut plugin_parts = plugin.split('/');
-					let (name, author) = match (plugin_parts.next_back(), plugin_parts.next_back())
-					{
+					let mut plugin_parts = plugin.split('/').rev().take(2);
+					let (name, author) = match (plugin_parts.next(), plugin_parts.next()) {
 						(Some(name), Some(author)) => (name, author),
 						_ => {
 							log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
@@ -116,13 +103,37 @@ fn main() -> Result<()> {
 						plug_name = name
 					);
 				}
-				config_lock_file.write(config_hash)?;
+				config_lock_file.write_all(config_hash)?;
 			} else {
 				log::debug!("Locked hash and config's are the same, see you next time");
 			}
-
-			Ok(())
 		}
-		Commands::Source => Ok(()),
+		Commands::Source => {
+			let Config { plugins } = get_rc_config()?;
+			let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
+			fs::create_dir_all(plugins_dir)?;
+
+			for plugin in plugins {
+				let mut plugin_parts = plugin.split('/').rev().take(2);
+				let (name, author) = match (plugin_parts.next(), plugin_parts.next()) {
+					(Some(name), Some(author)) => (name, author),
+					_ => {
+						log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
+						continue;
+					}
+				};
+
+				if plugins_dir.join(author).join(name).join(".git").exists() {
+					println!(
+						include_str!("../assets/scripts/plugin_source.zsh"),
+						plug_dir = plugins_dir.display(),
+						author = author,
+						plug_name = name
+					);
+				}
+			}
+		}
 	}
+
+	Ok(())
 }
