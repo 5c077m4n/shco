@@ -13,7 +13,7 @@ use shco::{
 	consts::CONFIG_LOCK,
 	hash::get_config_hash,
 	path::{get_xdg_compat_dir, XDGDirType},
-	utils::{create_shell_init_script, get_rc_config},
+	utils::{create_shell_init_script, get_rc_config, init_env_logger},
 };
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
 use url::Url;
@@ -35,7 +35,7 @@ struct CLIArgs {
 }
 
 fn main() -> Result<()> {
-	env_logger::init();
+	init_env_logger()?;
 	let CLIArgs { command } = CLIArgs::parse();
 
 	match command {
@@ -47,7 +47,10 @@ fn main() -> Result<()> {
 		Commands::Sync => {
 			let config_hash = match get_config_hash() {
 				Ok(hash) => hash,
-				Err(_) => return Ok(()),
+				Err(_) => {
+					log::error!("Could not get the current config's hash");
+					return Ok(());
+				}
 			};
 			let config_hash = config_hash.as_bytes();
 
@@ -86,7 +89,7 @@ fn main() -> Result<()> {
 					let (name, author) = match (plugin_parts.get(0), plugin_parts.get(1)) {
 						(Some(name), Some(author)) => (name, author),
 						_ => {
-							log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
+							log::warn!("`{}` is an invalid plugin URL", plugin);
 							continue;
 						}
 					};
@@ -145,7 +148,7 @@ fn main() -> Result<()> {
 				let (name, author) = match (plugin_parts.get(0), plugin_parts.get(1)) {
 					(Some(name), Some(author)) => (name, author),
 					_ => {
-						log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
+						log::warn!("`{}` is an invalid plugin URL", plugin);
 						continue;
 					}
 				};
