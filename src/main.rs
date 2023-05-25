@@ -15,6 +15,7 @@ use shco::{
 	path::{get_xdg_compat_dir, XDGDirType},
 	utils::{get_rc_config, print_shell_init},
 };
+use sysinfo::{ProcessExt, Signal, System, SystemExt};
 
 mod shco;
 
@@ -104,6 +105,21 @@ fn main() -> Result<()> {
 					);
 				}
 				config_lock_file.write_all(config_hash)?;
+
+				if System::SUPPORTED_SIGNALS.contains(&Signal::Winch) {
+					let mut sys = System::new();
+					sys.refresh_processes();
+
+					for process in sys.processes_by_name("zsh") {
+						log::debug!(
+							"Sending {} signal to pid #{} ({:?})",
+							Signal::Winch,
+							process.pid(),
+							process.exe()
+						);
+						process.kill_with(Signal::Winch);
+					}
+				}
 			} else {
 				log::debug!("Locked hash and config's are the same, see you next time");
 			}
