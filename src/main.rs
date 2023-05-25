@@ -16,6 +16,7 @@ use shco::{
 	utils::{get_rc_config, print_shell_init},
 };
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
+use url::Url;
 
 mod shco;
 
@@ -76,8 +77,13 @@ fn main() -> Result<()> {
 					let plugin = plugin.as_str();
 					log::debug!("Started working on {:?}", plugin);
 
-					let mut plugin_parts = plugin.split('/').rev().take(2);
-					let (name, author) = match (plugin_parts.next(), plugin_parts.next()) {
+					let plugin_url = Url::parse(&plugin)?;
+					let plugin_parts = plugin_url
+						.path_segments()
+						.map(|seg_iter| seg_iter.rev().take(2).collect::<Vec<_>>());
+					let Some(plugin_parts) = plugin_parts else { continue; };
+
+					let (name, author) = match (plugin_parts.get(0), plugin_parts.get(1)) {
 						(Some(name), Some(author)) => (name, author),
 						_ => {
 							log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
@@ -130,9 +136,14 @@ fn main() -> Result<()> {
 			fs::create_dir_all(plugins_dir)?;
 
 			for plugin in plugins {
-				let plugin_parts: Vec<&str> = plugin.split('/').rev().take(2).collect();
-				let (name, author) = match plugin_parts[..] {
-					[name, author] => (name, author),
+				let plugin_url = Url::parse(&plugin)?;
+				let plugin_parts = plugin_url
+					.path_segments()
+					.map(|seg_iter| seg_iter.rev().take(2).collect::<Vec<_>>());
+				let Some(plugin_parts) = plugin_parts else { continue; };
+
+				let (name, author) = match (plugin_parts.get(0), plugin_parts.get(1)) {
+					(Some(name), Some(author)) => (name, author),
 					_ => {
 						log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
 						continue;
@@ -142,7 +153,7 @@ fn main() -> Result<()> {
 				if plugins_dir.join(author).join(name).join(".git").exists() {
 					println!(
 						include_str!("../assets/scripts/plugin_source.zsh"),
-						plug_dir = plugins_dir.display(),
+						plug_dir = plugins_dir.display().to_string(),
 						author = author,
 						plug_name = name
 					);
