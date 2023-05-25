@@ -65,7 +65,6 @@ fn main() -> Result<()> {
 
 			let mut current_hash = vec![];
 			config_lock_file.read_to_end(&mut current_hash)?;
-			log::debug!("Current hash: {:?}", &current_hash);
 
 			if config_hash != current_hash {
 				let Config { plugins } = get_rc_config()?;
