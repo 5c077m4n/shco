@@ -8,7 +8,7 @@ use super::{
 	path::{get_xdg_compat_dir, XDGDirType},
 };
 
-pub fn print_shell_init(shell_path: &str) -> Result<()> {
+pub fn create_shell_init_script(shell_path: &str) -> Result<String> {
 	let cmd = {
 		let bin = env::current_exe()?;
 		bin.display().to_string() + " source"
@@ -18,9 +18,7 @@ pub fn print_shell_init(shell_path: &str) -> Result<()> {
 		.last()
 		.ok_or_else(|| anyhow!("SHELL env var should not be empty"))
 		.map(|shell| match shell {
-			"zsh" => {
-				println!(include_str!("../../assets/scripts/init.zsh"), cmd = cmd);
-			}
+			"zsh" => format!(include_str!("../../assets/scripts/init.zsh"), cmd = cmd),
 			other => {
 				log::error!("`{}` is an unsupported shell", &other);
 				process::exit(1);

@@ -13,7 +13,7 @@ use shco::{
 	consts::CONFIG_LOCK,
 	hash::get_config_hash,
 	path::{get_xdg_compat_dir, XDGDirType},
-	utils::{get_rc_config, print_shell_init},
+	utils::{create_shell_init_script, get_rc_config},
 };
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
 use url::Url;
@@ -41,7 +41,8 @@ fn main() -> Result<()> {
 	match command {
 		Commands::Init => {
 			let shell_path = env::var("SHELL")?;
-			print_shell_init(&shell_path)?;
+			let init_script = create_shell_init_script(&shell_path)?;
+			println!("{}", &init_script);
 		}
 		Commands::Sync => {
 			let config_hash = match get_config_hash() {
