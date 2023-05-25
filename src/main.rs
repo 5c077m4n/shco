@@ -130,9 +130,9 @@ fn main() -> Result<()> {
 			fs::create_dir_all(plugins_dir)?;
 
 			for plugin in plugins {
-				let mut plugin_parts = plugin.split('/').rev().take(2);
-				let (name, author) = match (plugin_parts.next(), plugin_parts.next()) {
-					(Some(name), Some(author)) => (name, author),
+				let plugin_parts: Vec<&str> = plugin.split('/').rev().take(2).collect();
+				let (name, author) = match plugin_parts[..] {
+					[name, author] => (name, author),
 					_ => {
 						log::warn!("[shco] `{}` is an invalid plugin URL", plugin);
 						continue;
