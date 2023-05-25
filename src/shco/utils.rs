@@ -46,14 +46,18 @@ pub fn init_env_logger() -> Result<()> {
 pub fn create_shell_init_script(shell_path: &str) -> Result<String> {
 	let cmd = {
 		let bin = env::current_exe()?;
-		bin.display().to_string() + " source"
+		bin.display().to_string()
 	};
 	shell_path
 		.split('/')
 		.last()
 		.ok_or_else(|| anyhow!("SHELL env var should not be empty"))
 		.map(|shell| match shell {
-			"zsh" => format!(include_str!("../../assets/scripts/init.zsh"), cmd = cmd),
+			"zsh" => format!(
+				include_str!("../../assets/scripts/init.zsh"),
+				cmd_source = cmd.clone() + " source",
+				cmd_sync = cmd.clone() + " sync"
+			),
 			other => {
 				log::error!("`{}` is an unsupported shell", &other);
 				process::exit(1);
