@@ -53,13 +53,11 @@ fn main() -> Result<()> {
 			};
 			let config_hash = config_hash.as_bytes();
 
-			let cache_dir = get_xdg_compat_dir(XDGDirType::Cache)?;
-			let cache_dir = cache_dir.as_path();
+			let cache_dir = &get_xdg_compat_dir(XDGDirType::Cache)?;
 			fs::create_dir_all(cache_dir)?;
 			log::debug!("{:?} is available", cache_dir);
 
-			let config_lock_file = cache_dir.join(CONFIG_LOCK);
-			let config_lock_file = config_lock_file.as_path();
+			let config_lock_file = &cache_dir.join(CONFIG_LOCK);
 			let mut config_lock_file = OpenOptions::new()
 				.read(true)
 				.append(true)
@@ -76,8 +74,7 @@ fn main() -> Result<()> {
 				fs::create_dir_all(plugins_dir)?;
 
 				let mut spawn_handles = vec![];
-				for plugin in plugins {
-					let plugin = plugin.as_str();
+				for ref plugin in plugins {
 					log::debug!("Started working on {:?}", plugin);
 
 					let (ref name, ref author) = match get_plugin_url_name_author(plugin) {
@@ -122,8 +119,8 @@ fn main() -> Result<()> {
 					let mut sys = System::new();
 					sys.refresh_processes();
 
-					let shell_name = env::var("SHELL")?;
-					for process in sys.processes_by_exact_name(&shell_name) {
+					let shell_name = &env::var("SHELL")?;
+					for process in sys.processes_by_exact_name(shell_name) {
 						log::debug!(
 							"Sending `{}` signal to pid #{} ({:?})",
 							Signal::Winch,
@@ -142,8 +139,7 @@ fn main() -> Result<()> {
 			let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
 			fs::create_dir_all(plugins_dir)?;
 
-			for plugin in plugins {
-				let plugin = plugin.as_str();
+			for ref plugin in plugins {
 				let (ref name, ref author) = match get_plugin_url_name_author(plugin) {
 					Ok((name, author)) => (name, author),
 					Err(e) => {
