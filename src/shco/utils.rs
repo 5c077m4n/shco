@@ -14,15 +14,15 @@ use url::Url;
 use super::{
 	config::Config,
 	consts::CONFIG_FILE,
-	path::{get_xdg_compat_dir, XDGDirType},
+	path::{get_xdg_cache_home, get_xdg_config_home},
 };
 
 pub fn init_env_logger() -> Result<()> {
-	let logs_dir = &get_xdg_compat_dir(XDGDirType::Cache)?.join("events.log");
+	let log_file = &get_xdg_cache_home()?.join("events.log");
 	let target = OpenOptions::new()
 		.create(true)
 		.append(true)
-		.open(logs_dir)?;
+		.open(log_file)?;
 	let target = Box::new(target);
 
 	Builder::new()
@@ -67,8 +67,7 @@ pub fn create_shell_init_script(shell_path: &str) -> Result<String> {
 }
 
 pub fn get_rc_config() -> Result<Config> {
-	let config_dir = get_xdg_compat_dir(XDGDirType::Config)?;
-	let config_file = config_dir.join(CONFIG_FILE);
+	let config_file = &get_xdg_config_home()?.join(CONFIG_FILE);
 	let mut config_file = OpenOptions::new()
 		.read(true)
 		.append(true)
@@ -86,10 +85,10 @@ pub fn get_plugin_url_name_author(plug_url: &str) -> Result<(String, String)> {
 	let plugin_url_object = Url::parse(plug_url)?;
 	let plugin_parts = plugin_url_object
 		.path_segments()
-		.map(|seg_iter| seg_iter.rev().take(2).collect::<Vec<_>>());
+		.map(|seg_iter| seg_iter.rev().take(2).collect::<Vec<&str>>());
 
 	if let Some(plugin_parts) = plugin_parts {
-		match (plugin_parts.get(0), plugin_parts.get(1)) {
+		match (plugin_parts.first(), plugin_parts.get(1)) {
 			(Some(name), Some(author)) => Ok((name.to_string(), author.to_string())),
 			_ => bail!("Could not extract the name and author of {}", plug_url),
 		}

@@ -13,7 +13,7 @@ use shco::{
 	config::Config,
 	consts::CONFIG_LOCK,
 	hash::get_config_hash,
-	path::{get_xdg_compat_dir, XDGDirType},
+	path::{get_xdg_cache_home, get_xdg_data_home},
 	utils::{create_shell_init_script, get_plugin_url_name_author, get_rc_config, init_env_logger},
 };
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
 			};
 			let config_hash = config_hash.as_bytes();
 
-			let cache_dir = &get_xdg_compat_dir(XDGDirType::Cache)?;
+			let cache_dir = &get_xdg_cache_home()?;
 			fs::create_dir_all(cache_dir)?;
 			log::debug!("{:?} is available", cache_dir);
 
@@ -73,7 +73,7 @@ fn main() -> Result<()> {
 			if config_hash != current_hash {
 				let Config { plugins } = get_rc_config()?;
 
-				let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
+				let plugins_dir = &get_xdg_data_home()?.join("plugins");
 				fs::create_dir_all(plugins_dir)?;
 
 				let mut spawn_handles = vec![];
@@ -141,7 +141,7 @@ fn main() -> Result<()> {
 		}
 		Commands::Source => {
 			let Config { plugins } = get_rc_config()?;
-			let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
+			let plugins_dir = &get_xdg_data_home()?.join("plugins");
 			fs::create_dir_all(plugins_dir)?;
 
 			for ref plugin in plugins {
