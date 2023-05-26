@@ -75,6 +75,7 @@ fn main() -> Result<()> {
 				let plugins_dir = &get_xdg_compat_dir(XDGDirType::Data)?.join("plugins");
 				fs::create_dir_all(plugins_dir)?;
 
+				let mut spawn_handles = vec![];
 				for plugin in plugins {
 					let plugin = plugin.as_str();
 					log::debug!("Started working on {:?}", plugin);
@@ -90,11 +91,12 @@ fn main() -> Result<()> {
 
 					if !plug_git_dir.exists() {
 						log::debug!("Installing '{}/{}'...", author, name);
-						Command::new("git")
+						let child_proc = Command::new("git")
 							.arg("clone")
 							.arg(plugin)
 							.current_dir(plugins_dir)
-							.output()?;
+							.spawn()?;
+						spawn_handles.push(child_proc);
 						log::debug!("Installed '{}/{}' successfully", author, name);
 					} else {
 						log::debug!("Plugin '{}' already exists", plugin);
@@ -107,6 +109,12 @@ fn main() -> Result<()> {
 						author = author,
 						plug_name = name
 					);
+				}
+				for handle in spawn_handles {
+					match handle.wait_with_output() {
+						Ok(_) => {}
+						Err(e) => log::warn!("{}", e),
+					}
 				}
 				config_lock_file.write_all(config_hash)?;
 
