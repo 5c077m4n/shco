@@ -122,9 +122,10 @@ fn main() -> Result<()> {
 					let mut sys = System::new();
 					sys.refresh_processes();
 
-					for process in sys.processes_by_name("zsh") {
+					let shell_name = env::var("SHELL")?;
+					for process in sys.processes_by_exact_name(&shell_name) {
 						log::debug!(
-							"Sending {} signal to pid #{} ({:?})",
+							"Sending `{}` signal to pid #{} ({:?})",
 							Signal::Winch,
 							process.pid(),
 							process.exe()
