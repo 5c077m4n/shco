@@ -110,19 +110,35 @@ fn main() -> Result<()> {
 				}
 				config_lock_file.write_all(config_hash)?;
 
-				if System::SUPPORTED_SIGNALS.contains(&Signal::Winch) {
+				if let Some(shell_name) = &env::var("SHELL")?.split('/').last() {
 					let mut sys = System::new();
 					sys.refresh_processes();
 
-					let shell_name = &env::var("SHELL")?;
-					for process in sys.processes_by_exact_name(shell_name) {
-						log::debug!(
-							"Sending `{}` signal to pid #{} ({:?})",
-							Signal::Winch,
-							process.pid(),
-							process.exe()
-						);
-						process.kill_with(Signal::Winch);
+					for process in sys.processes_by_name(shell_name) {
+						match process.kill_with(Signal::Winch) {
+							Some(true) => {
+								log::debug!(
+									"Sending `{}` signal to pid #{} ({:?})",
+									Signal::Winch,
+									process.pid(),
+									process.exe()
+								);
+							}
+							Some(false) => {
+								log::debug!(
+									"Could not send `{}` signal to pid #{} ({:?})",
+									Signal::Winch,
+									process.pid(),
+									process.exe()
+								);
+							}
+							None => {
+								log::debug!(
+									"The `{}` signal in not supported on this machine",
+									Signal::Winch,
+								);
+							}
+						}
 					}
 				}
 			} else {
