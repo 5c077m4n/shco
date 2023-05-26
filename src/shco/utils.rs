@@ -5,10 +5,11 @@ use std::{
 	process,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use chrono::Local;
 use env_logger::{Builder, Target};
 use log::LevelFilter;
+use url::Url;
 
 use super::{
 	config::Config,
@@ -79,4 +80,20 @@ pub fn get_rc_config() -> Result<Config> {
 
 	let config = serde_json::from_slice::<Config>(&config)?;
 	Ok(config)
+}
+
+pub fn get_plugin_url_name_author(plug_url: &str) -> Result<(String, String)> {
+	let plugin_url_object = Url::parse(plug_url)?;
+	let plugin_parts = plugin_url_object
+		.path_segments()
+		.map(|seg_iter| seg_iter.rev().take(2).collect::<Vec<_>>());
+
+	if let Some(plugin_parts) = plugin_parts {
+		match (plugin_parts.get(0), plugin_parts.get(1)) {
+			(Some(name), Some(author)) => Ok((name.to_string(), author.to_string())),
+			_ => bail!("Could not extract the name and author of {}", plug_url),
+		}
+	} else {
+		bail!("Could not extract the name and author of {}", plug_url);
+	}
 }

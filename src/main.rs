@@ -13,10 +13,9 @@ use shco::{
 	consts::CONFIG_LOCK,
 	hash::get_config_hash,
 	path::{get_xdg_compat_dir, XDGDirType},
-	utils::{create_shell_init_script, get_rc_config, init_env_logger},
+	utils::{create_shell_init_script, get_plugin_url_name_author, get_rc_config, init_env_logger},
 };
 use sysinfo::{ProcessExt, Signal, System, SystemExt};
-use url::Url;
 
 mod shco;
 
@@ -80,16 +79,10 @@ fn main() -> Result<()> {
 					let plugin = plugin.as_str();
 					log::debug!("Started working on {:?}", plugin);
 
-					let plugin_url = Url::parse(&plugin)?;
-					let plugin_parts = plugin_url
-						.path_segments()
-						.map(|seg_iter| seg_iter.rev().take(2).collect::<Vec<_>>());
-					let Some(plugin_parts) = plugin_parts else { continue; };
-
-					let (name, author) = match (plugin_parts.get(0), plugin_parts.get(1)) {
-						(Some(name), Some(author)) => (name, author),
-						_ => {
-							log::warn!("`{}` is an invalid plugin URL", plugin);
+					let (ref name, ref author) = match get_plugin_url_name_author(plugin) {
+						Ok((name, author)) => (name, author),
+						Err(e) => {
+							log::warn!("{}", e);
 							continue;
 						}
 					};
@@ -106,6 +99,8 @@ fn main() -> Result<()> {
 					} else {
 						log::debug!("Plugin '{}' already exists", plugin);
 					}
+
+					log::debug!("Now sourcing {}/{}", author, name);
 					println!(
 						include_str!("../assets/scripts/plugin_source.zsh"),
 						plug_dir = plugins_dir.display(),
@@ -139,21 +134,17 @@ fn main() -> Result<()> {
 			fs::create_dir_all(plugins_dir)?;
 
 			for plugin in plugins {
-				let plugin_url = Url::parse(&plugin)?;
-				let plugin_parts = plugin_url
-					.path_segments()
-					.map(|seg_iter| seg_iter.rev().take(2).collect::<Vec<_>>());
-				let Some(plugin_parts) = plugin_parts else { continue; };
-
-				let (name, author) = match (plugin_parts.get(0), plugin_parts.get(1)) {
-					(Some(name), Some(author)) => (name, author),
-					_ => {
-						log::warn!("`{}` is an invalid plugin URL", plugin);
+				let plugin = plugin.as_str();
+				let (ref name, ref author) = match get_plugin_url_name_author(plugin) {
+					Ok((name, author)) => (name, author),
+					Err(e) => {
+						log::warn!("{}", e);
 						continue;
 					}
 				};
 
 				if plugins_dir.join(author).join(name).join(".git").exists() {
+					log::debug!("Now sourcing {}/{}", author, name);
 					println!(
 						include_str!("../assets/scripts/plugin_source.zsh"),
 						plug_dir = plugins_dir.display().to_string(),
