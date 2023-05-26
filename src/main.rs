@@ -4,6 +4,7 @@ use std::{
 	io::{Read, Write},
 	println,
 	process::Command,
+	time::Instant,
 };
 
 use anyhow::Result;
@@ -44,6 +45,8 @@ fn main() -> Result<()> {
 			println!("{}", &init_script);
 		}
 		Commands::Sync => {
+			let now = Instant::now();
+
 			let config_hash = match get_config_hash() {
 				Ok(hash) => hash,
 				Err(_) => {
@@ -133,6 +136,8 @@ fn main() -> Result<()> {
 			} else {
 				log::debug!("Locked hash and config's are the same, see you next time");
 			}
+
+			log::trace!("Sync took {:?}", now.elapsed());
 		}
 		Commands::Source => {
 			let Config { plugins } = get_rc_config()?;
