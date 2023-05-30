@@ -25,6 +25,7 @@ enum Commands {
 	Init,
 	Sync,
 	Source,
+	Update,
 }
 
 #[derive(Parser, Debug)]
@@ -146,6 +147,39 @@ fn main() -> Result<()> {
 			}
 
 			log::trace!("Sync took {:?}", now.elapsed());
+		}
+		Commands::Update => {
+			let Config { plugins } = get_rc_config()?;
+			let plugins_dir = &get_xdg_data_home()?.join("plugins");
+			fs::create_dir_all(plugins_dir)?;
+
+			for ref plugin in plugins {
+				let (ref name, ref author) = match get_plugin_url_name_author(plugin) {
+					Ok((name, author)) => (name, author),
+					Err(e) => {
+						log::warn!("{}", e);
+						continue;
+					}
+				};
+				let plug_dir = plugins_dir.join(author).join(name);
+
+				if plug_dir.join(".git").exists() {
+					log::debug!("Updating '{}/{}'...", author, name);
+					let output = &Command::new("git")
+						.arg("pull")
+						.current_dir(plugins_dir)
+						.output()?;
+					log::debug!("Updated '{}/{}' successfully\n{:?}", author, name, output);
+				} else {
+					log::debug!("Installing '{}/{}'...", author, name);
+					let output = &Command::new("git")
+						.arg("clone")
+						.arg(plugin)
+						.current_dir(plugins_dir)
+						.output()?;
+					log::debug!("Installed '{}/{}' successfully\n{:?}", author, name, output);
+				}
+			}
 		}
 		Commands::Source => {
 			let Config { plugins } = get_rc_config()?;
